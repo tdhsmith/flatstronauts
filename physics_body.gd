@@ -47,12 +47,16 @@ enum PhysicsState {
 
 static func state_exerts_gravity(s: PhysicsState) -> bool:
 	return s != PhysicsState.SCRIPTED
-
 static func state_calculates_accel(s: PhysicsState) -> bool:
 	return s == PhysicsState.FREE
-
 static func state_moves_by_veloc(s: PhysicsState) -> bool:
 	return s == PhysicsState.FREE
+static func body_exerts_gravity(b: Body) -> bool:
+	return Body.state_exerts_gravity(b.physicsState)
+static func body_calculates_accel(b: Body) -> bool:
+	return Body.state_calculates_accel(b.physicsState)
+static func body_moves_by_veloc(b: Body) -> bool:
+	return Body.state_moves_by_veloc(b.physicsState)
 
 # Whether child Sprite2D nodes are automatically rescaled to match this Body's
 # current radius

@@ -14,10 +14,10 @@ func _process(delta: float) -> void:
 			return
 		else:
 			emitting = true
-		# This is simply downward because the node is relatively positioned to
-		# its parent, so it's already getting rotated along with it. Once a ship
-		# can thrust in non-forward directions, this will need updating.
-		var angle = Vector2.DOWN 
+		# This is simply left because the node is relatively positioned to
+		# its parent, and right is the 0deg rotation. If/when a ship can thrust
+		# in non-forward directions, this will need updating.
+		var angle = Vector2.LEFT 
 		var base_veloc =  (thrust_animation_scale * thrust_scalar * delta * 60)
 		process_material.initial_velocity_min = base_veloc - 5
 		process_material.initial_velocity_max = base_veloc + 5

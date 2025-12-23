@@ -23,6 +23,12 @@ var bodies: Array[Body] = []
 # dictionary that stratifies the Body arrays by their MassTier
 var bodies_by_tier: Dictionary[Body.MassTier, Array] = {}
 
+static var SIM_NAME = "Physics"
+static func find (n: Node) -> PhysicsSimulator:
+	var psn = n.get_node("/root/" + PhysicsSimulator.SIM_NAME)
+	assert(psn is PhysicsSimulator)
+	return psn
+
 func sort_bodies_into_tiers() -> void:
 	for tier in Body.MassTier.values():
 		bodies_by_tier[tier] = bodies.filter(func (b: Body): return b.massTier == tier)
@@ -43,6 +49,7 @@ func find_all_body_descendants() -> Array[Body]:
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	assert(name == PhysicsSimulator.SIM_NAME, "PhysicsSimulator node must be named '%s'" % PhysicsSimulator.SIM_NAME)
 	# Make the physics process fire earlier than default. Since the simulator is
 	# currently expected to be the root and _physics_process fires in pre-trav
 	# order, this wouldn't typically matter, but I do it simply to express that
@@ -81,7 +88,7 @@ func _physics_process(_delta: float) -> void:
 			if b1 == b2:
 				# stop gravitating yourself, bro
 				continue
-			if !Body.state_exerts_gravity(b1) || !Body.state_exerts_gravity(b2):
+			if !Body.body_exerts_gravity(b1) || !Body.body_exerts_gravity(b2):
 				# if either shouldn't exert gravity, skip this whole step
 				continue
 			var r_squared = b1.position.distance_squared_to(b2.position)

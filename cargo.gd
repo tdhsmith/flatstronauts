@@ -9,6 +9,9 @@ enum CargoType {
 }
 
 var cType: CargoType = CargoType.NONE
+var cTypeLabel: String:
+	get():
+		return CargoType.find_key(cType)
 var capacity: float = 100.0
 var amount: float = 0.0
 var free_space: float:
@@ -46,3 +49,7 @@ func pull_from (source: Cargo, to_pull: float, fail_on_overdraw: bool = true) ->
 		amount += transferable
 		return transferable
 	return 0
+
+# reversed helper to call pull_from in opposite A<->B
+func push_to (sink: Cargo, to_push: float) -> float:
+	return sink.pull_from(self, to_push, false)

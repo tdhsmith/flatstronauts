@@ -10,11 +10,13 @@ const FORCE_VECTOR_VISUAL_SCALE: float = 40.0
 
 # whether the overall debug drawing is on
 @export var rendering: bool = false
-@export_subgroup("Draw Options")
+@export_group("Draw Options", "draw")
 # whether to visualize force and velocity vectors as arrows
 @export var physics_vectors: bool = true
 # whether to draw a visible boundary for the playable area
 @export var playable_area: bool = true
+
+@export var body_radius: bool = true
 
 #@export_tool_button("Force Update") var update_fn = queue_redraw
 
@@ -44,16 +46,25 @@ func _draw() -> void:
 	# but I expect this to change someday (TODO)
 	var physicsManager = get_parent()
 	if physicsManager is PhysicsSimulator:
-		if physics_vectors:
+		if physics_vectors || body_radius:
 			for body in physicsManager.bodies:
-				draw_arrow(
-					body.position,
-					body.position + PhysicsSimulator.v32(body.velocity),
-					Color.RED)
-				draw_arrow(
-					body.position,
-					body.position + PhysicsSimulator.v32(body.f_total * FORCE_VECTOR_VISUAL_SCALE),
-					Color.YELLOW)
+				if physics_vectors:
+					draw_arrow(
+						body.position,
+						body.position + PhysicsSimulator.v32(body.velocity),
+						Color.RED)
+					draw_arrow(
+						body.position,
+						body.position + PhysicsSimulator.v32(body.f_total * FORCE_VECTOR_VISUAL_SCALE),
+						Color.YELLOW)
+				if body_radius:
+					draw_circle(
+						body.position,
+						body.radius,
+						Color.AQUA,
+						false,
+						1.0
+					)
 		if playable_area:
 			draw_dashed_line(Vector2.ZERO, Vector2(0, physicsManager.playable_area.y), Color.GRAY)
 			draw_dashed_line(Vector2.ZERO, Vector2(physicsManager.playable_area.x, 0), Color.GRAY)

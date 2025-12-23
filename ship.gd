@@ -6,8 +6,9 @@ extends Body
 
 # whether this ship accepts user input; this is very very temporary handling!
 @export var selected: bool = true
-# we store initial position so we can reset it with specual debug functions
+# we store initial position so we can reset it with special debug functions
 var initial_position: Vector2 = position
+var initial_rotation: float = rotation
 
 # how much force can the ship apply to itself
 @export var MAX_THRUST: float = 1.0
@@ -15,9 +16,11 @@ var initial_position: Vector2 = position
 const ANGULAR_THRUST_SCALE: float = 15
 
 @export var max_fuel: float = 100.0
-var current_fuel: float = 0
+var fuel: Cargo
 @export var max_health: float = 10.0
 var current_health: float = 0
+# the amount of units spent per second
+@export var fuel_spend_rate: float = 10.0
 @export var init_cargo_capacity: float = 100.0
 @export var cargo_type: Cargo.CargoType = Cargo.CargoType.ORE
 var cargo: Cargo
@@ -26,17 +29,29 @@ const START_WITH_MAX_FUEL_AND_HEALTH: bool = true
 
 func _init() -> void:
 	cargo = Cargo.new(cargo_type, init_cargo_capacity)
+	var current_fuel = 0
 	if START_WITH_MAX_FUEL_AND_HEALTH:
 		current_health = max_health
 		current_fuel = max_fuel
+	fuel = Cargo.new(Cargo.CargoType.FUEL, max_fuel, current_fuel)
 
-func getThrustByRotation (percentage: float) -> Vector2:
-	# rotation = 0 means UP not RIGHT, and Y is measured from screen top so this
-	# is diferent than standard cartesian coordinates
-	return Vector2(
-		sin(rotation) * percentage * MAX_THRUST,
-		-1 * cos(rotation) * percentage * MAX_THRUST
+var thrust_ratio: float = 0 # 0.0 to 1.0
+var angular_thrust_ratio: float = 0  # -1.0 to 1.0
+
+func get_thrust_vector () -> Vector3:
+	thrust_ratio = clampf(thrust_ratio, 0.0, 1.0)
+	angular_thrust_ratio = clampf(angular_thrust_ratio, -1.0, 1.0)
+	return Vector3(
+		cos(rotation) * thrust_ratio * MAX_THRUST,
+		sin(rotation) * thrust_ratio * MAX_THRUST,
+		angular_thrust_ratio * (MAX_THRUST / ANGULAR_THRUST_SCALE)
 	)
+
+static func find_selected (ps: PhysicsSimulator) -> Ship:
+	var ships = ps.bodies.filter(func (b: Body): return b is Ship and (b as Ship).selected)
+	if (ships.size() > 0):
+		return ships[0] as Ship
+	return null
 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
@@ -49,22 +64,28 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector3(0, 0, 0)
 			if Input.is_key_pressed(KEY_SHIFT):
 				position = initial_position
+				rotation = initial_rotation
 			return
 		
 		if Input.is_action_pressed("thrustForward"):
-			var ft = getThrustByRotation(1.0)
-			#print("thrusting [", ft[0], ",", ft[1], "]")
-			f_own[0] = ft[0]
-			f_own[1] = ft[1]
+			var intended_thrust = 1.0
+			var has_enough = fuel.deduct(fuel_spend_rate * intended_thrust * delta)
+			if has_enough:
+				thrust_ratio = intended_thrust
+			else:
+				thrust_ratio = 0.0
 		else:
-			f_own = Vector3(0, 0, 0)
+			thrust_ratio = 0.0
 		
+		# NOTE for now rotating doesn't require fuel
 		if Input.is_action_pressed("thrustRotateCW"):
-			f_own[2] = MAX_THRUST / ANGULAR_THRUST_SCALE
+			angular_thrust_ratio = 1.0
 		elif Input.is_action_pressed("thrustRotateCCW"):
-			f_own[2] = -1 * MAX_THRUST / ANGULAR_THRUST_SCALE
+			angular_thrust_ratio = -1.0
 		else:
-			f_own[2] = 0
+			angular_thrust_ratio = 0.0
+
+		f_own = get_thrust_vector()
 	
 	# the _physics_process on Body handles turning force into accel & veloc
 	super(delta)
