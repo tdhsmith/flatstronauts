@@ -1,0 +1,64 @@
+extends Node2D
+
+# This class handles the drawing of special debugging & visualization elements
+# onto the screen. We separate it from PhysicsSimulator to 1) keep it from being
+# cluttered, and 2) to make the drawing layers simpler (the simulator node, as
+# a root, has a hard time drawing to the "top layer")
+
+# ratio between force values and their displayed length in canvas units
+const FORCE_VECTOR_VISUAL_SCALE: float = 40.0
+
+# whether the overall debug drawing is on
+@export var rendering: bool = false
+@export_subgroup("Draw Options")
+# whether to visualize force and velocity vectors as arrows
+@export var physics_vectors: bool = true
+# whether to draw a visible boundary for the playable area
+@export var playable_area: bool = true
+
+#@export_tool_button("Force Update") var update_fn = queue_redraw
+
+# Helper function to create arrows. It also allows a "maximum length": if an
+# arrow would be over that length, we limit it and then draw a second "head" to
+# indicate it is going beyond the scale
+func draw_arrow (a: Vector2, b: Vector2, c: Color, headSize: float = 5, doubleCapMaxLen: float = 50) -> void:
+	var to = b - a
+	var rev = b.direction_to(a)
+	var h1 = rev.rotated(PI/8) * headSize
+	var h2 = rev.rotated(PI/-8) * headSize
+	if to.length() > doubleCapMaxLen:
+		b = a + to.limit_length(doubleCapMaxLen)
+		var x = b + to.normalized() * headSize
+		draw_line(x, x+h1, c)
+		draw_line(x, x+h2, c)
+	draw_line(a, b, c)
+	draw_line(b, b+h1, c)
+	draw_line(b, b+h2, c)
+
+#func update_for_editor():
+	#queue_redraw()
+
+func _draw() -> void:
+	# This node assumes it is a child of the PhysicsSimulator. I don't yet know
+	# a better architectural setup for physics entities to find the singleton
+	# but I expect this to change someday (TODO)
+	var physicsManager = get_parent()
+	if physicsManager is PhysicsSimulator:
+		if physics_vectors:
+			for body in physicsManager.bodies:
+				draw_arrow(
+					body.position,
+					body.position + PhysicsSimulator.v32(body.velocity),
+					Color.RED)
+				draw_arrow(
+					body.position,
+					body.position + PhysicsSimulator.v32(body.f_total * FORCE_VECTOR_VISUAL_SCALE),
+					Color.YELLOW)
+		if playable_area:
+			draw_dashed_line(Vector2.ZERO, Vector2(0, physicsManager.playable_area.y), Color.GRAY)
+			draw_dashed_line(Vector2.ZERO, Vector2(physicsManager.playable_area.x, 0), Color.GRAY)
+			draw_dashed_line(Vector2(0, physicsManager.playable_area.y), physicsManager.playable_area, Color.GRAY)
+			draw_dashed_line(Vector2(physicsManager.playable_area.x, 0), physicsManager.playable_area, Color.GRAY)
+	else:
+		print("DebugDrawings is not child of PhysicsSimulator!")
+		rendering = false
