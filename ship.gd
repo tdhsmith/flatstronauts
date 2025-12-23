@@ -38,6 +38,13 @@ func _init() -> void:
 var thrust_ratio: float = 0 # 0.0 to 1.0
 var angular_thrust_ratio: float = 0  # -1.0 to 1.0
 
+func apply_damage(amt: float, reason: String = "") -> void:
+	print("ship %s took %.0f damage from %s", [label, amt, reason])
+	if current_health > amt:
+		current_health -= amt
+	else:
+		explode()
+
 func get_thrust_vector () -> Vector3:
 	thrust_ratio = clampf(thrust_ratio, 0.0, 1.0)
 	angular_thrust_ratio = clampf(angular_thrust_ratio, -1.0, 1.0)
@@ -57,6 +64,10 @@ func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		# don't actually apply physics in editor mode
 		return
+		
+	if p_state == PhysicsState.ATTACHED:
+		#breakpoint
+		pass
 	
 	if selected:
 		if Input.is_action_pressed("haltMovement"):

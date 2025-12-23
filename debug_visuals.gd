@@ -41,25 +41,22 @@ func draw_arrow (a: Vector2, b: Vector2, c: Color, headSize: float = 5, doubleCa
 	#queue_redraw()
 
 func _draw() -> void:
-	# This node assumes it is a child of the PhysicsSimulator. I don't yet know
-	# a better architectural setup for physics entities to find the singleton
-	# but I expect this to change someday (TODO)
-	var physicsManager = get_parent()
-	if physicsManager is PhysicsSimulator:
+	var physicsManager = PhysicsSimulator.find(self)
+	if physicsManager:
 		if physics_vectors || body_radius:
 			for body in physicsManager.bodies:
 				if physics_vectors:
 					draw_arrow(
-						body.position,
-						body.position + PhysicsSimulator.v32(body.velocity),
+						body.global_position,
+						body.global_position + PhysicsSimulator.v32(body.velocity),
 						Color.RED)
 					draw_arrow(
-						body.position,
-						body.position + PhysicsSimulator.v32(body.f_total * FORCE_VECTOR_VISUAL_SCALE),
+						body.global_position,
+						body.global_position + PhysicsSimulator.v32(body.f_total * FORCE_VECTOR_VISUAL_SCALE),
 						Color.YELLOW)
 				if body_radius:
 					draw_circle(
-						body.position,
+						body.global_position,
 						body.radius,
 						Color.AQUA,
 						false,

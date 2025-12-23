@@ -51,16 +51,25 @@ static func state_calculates_accel(s: PhysicsState) -> bool:
 	return s == PhysicsState.FREE
 static func state_moves_by_veloc(s: PhysicsState) -> bool:
 	return s == PhysicsState.FREE
+static func state_requires_parent(s: PhysicsState) -> bool:
+	return (s == PhysicsState.LANDED || s == PhysicsState.ATTACHED)
+static func state_has_collisions(s: PhysicsState) -> bool:
+	return s != PhysicsState.SCRIPTED
 static func body_exerts_gravity(b: Body) -> bool:
-	return Body.state_exerts_gravity(b.physicsState)
+	return Body.state_exerts_gravity(b.p_state)
 static func body_calculates_accel(b: Body) -> bool:
-	return Body.state_calculates_accel(b.physicsState)
+	return Body.state_calculates_accel(b.p_state)
 static func body_moves_by_veloc(b: Body) -> bool:
-	return Body.state_moves_by_veloc(b.physicsState)
+	return Body.state_moves_by_veloc(b.p_state)
+static func body_requires_parent(b: Body) -> bool:
+	return Body.state_requires_parent(b.p_state)
+static func body_has_collisions(b: Body) -> bool:
+	return Body.state_has_collisions(b.p_state)
 
 # Whether child Sprite2D nodes are automatically rescaled to match this Body's
 # current radius
 @export var autoscale_sprites: bool = true
+@export_tool_button("Run Autoscale") var autoscaler_fn = update_child_sprites
 
 # The radius represents the bounding circle of an object, as well as the (half-)
 # side length of any auto-scaled sprites
@@ -69,6 +78,8 @@ static func body_moves_by_veloc(b: Body) -> bool:
 		radius = newRadius
 		if autoscale_sprites:
 			update_child_sprites()
+		if collision is CircleShape2D:
+			_update_collision_circle()
 	get():
 		return radius
 
@@ -81,6 +92,16 @@ func update_child_sprites() -> void:
 		else:
 			print("non sprite2d %s" % child.name)
 
+func _update_collision_circle() -> void:
+	(collision as CircleShape2D).radius = radius
+
+func apply_damage(_amt: float, _reason: String = "") -> void:
+	pass # children may use this
+
+func explode() -> void:
+	# TODO create bits
+	destroyed = true
+
 # A user-facing name for this body
 @export var label: String = "":
 	get():
@@ -89,11 +110,14 @@ func update_child_sprites() -> void:
 		else:
 			return label
 # The current state of the body, see PhysicsState for details
-@export var physicsState: PhysicsState = PhysicsState.FREE
+@export var p_state: PhysicsState = PhysicsState.FREE
+
+
+var destroyed: bool = false
 
 # helper to get the enum key for the current state, useful for debug output
 func get_state_label() -> String:
-	return PhysicsState.find_key(physicsState)
+	return PhysicsState.find_key(p_state)
 
 # The maximum tier of bodies that this Body can exert influence on
 @export var massTier: MassTier = MassTier.JUNK
@@ -101,6 +125,8 @@ func get_state_label() -> String:
 @export_range(0, 10000, 1, "exp", "or_greater") var mass: float = 1
 # The Body's directional speed, where z is the rotation
 @export var velocity: Vector3 = Vector3.ZERO
+
+@export var collision: Shape2D = CircleShape2D.new()
 
 @export_group("Attachement & Orbits")
 @export var parent_body: Body = null
@@ -135,7 +161,6 @@ var f_total: Vector3 = Vector3.ZERO:
 			#acc.append_array(grandchilden)
 	#return acc
 
-# 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint() || delta == 0:
 		# don't apply physics in editor mode
@@ -143,13 +168,12 @@ func _physics_process(delta: float) -> void:
 	
 	var totalAccel = f_total / mass
 	
-	if Body.state_calculates_accel(physicsState):
+	if Body.state_calculates_accel(p_state):
 		#print("apply accel to %s in state %s" % [label, get_state_label()])
 		velocity += totalAccel
 
-	if Body.state_moves_by_veloc(physicsState):
+	if Body.state_moves_by_veloc(p_state):
 		# add velocity vector to position
 		position.x += velocity[0] * delta
 		position.y += velocity[1] * delta
 		rotation += (velocity[2] / 360)
-	

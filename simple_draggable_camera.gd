@@ -15,16 +15,16 @@ var drag_start_pointer: Vector2 = Vector2.ZERO
 # where the camera was when the drag started
 var drag_start_camera: Vector2 = Vector2.ZERO
 
-var is_following: bool = false
-var following_body: Body
+@export var follow_mode: bool = false
+@export var follow_target: Body
 
 func _process(_delta: float):
-	if is_following:
-		position = following_body.position
+	if follow_mode:
+		position = follow_target.global_position
 
 func _input(event: InputEvent) -> void:
 	if event.is_action("cameraViewAll"):
-		is_following = false
+		follow_mode = false
 		drag_active = false
 		var psn = PhysicsSimulator.find(self)
 		position = psn.playable_area / 2  # move to the midpoint
@@ -40,13 +40,13 @@ func _input(event: InputEvent) -> void:
 			position = ship.position
 			if Input.is_key_pressed(KEY_SHIFT):
 				# start following!
-				following_body = ship
-				is_following = true
+				follow_target = ship
+				follow_mode = true
 				return 
-		is_following = false
+		follow_mode = false
 		return
 	if event is InputEventMouseButton:
-		is_following = false
+		follow_mode = false
 		if event.button_index == drag_button && event.is_pressed():
 			#print("dragging started at %f,%f" % [event.position.x, event.position.y])
 			drag_active = true

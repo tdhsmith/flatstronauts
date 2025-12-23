@@ -17,6 +17,8 @@ extends Node2D
 @export var playable_area: Vector2 = Vector2(1200, 800)
 # whether a Body leaving the playable area should be held to its bounds
 @export var clamp_all_bodies: bool = true
+# what node should be used as the primary container for bodies
+@export var container: Node = self
 
 # array tracking all of the Body nodes in the scene
 var bodies: Array[Body] = []
@@ -66,6 +68,41 @@ static func apply_grav(b: Body, force_scalar: float, dir: Vector2) -> void:
 	var scaled = Vector3(dir[0] * force_scalar, dir[1] * force_scalar, 0)
 	b.f_gravity += scaled
 
+func has_relevant_collision(a: Body, b: Body) -> bool:
+	# ignore bodies with null collision
+	if !a.collision || !b.collision:
+		return false
+	# ignore states that opt out of collision entirely
+	if !Body.body_has_collisions(a) || !Body.body_has_collisions(b):
+		return false
+	# ignore collisions between parent and child
+	if Body.body_requires_parent(a) && a.parent_body == b:
+		return false
+	if Body.body_requires_parent(b) && b.parent_body == a:
+		return false
+	# finally, run the shape collision detector
+	return a.collision.collide(a.global_transform, b.collision, b.global_transform)
+
+const LANDING_SPEED_MAX: float = 20
+func get_landing_speed_damage(speed: float) -> float:
+	if speed > LANDING_SPEED_MAX:
+		return speed - LANDING_SPEED_MAX
+	return 0
+
+func _handle_collision(a: Body, b: Body) -> void:
+	var relative_velocity = a.velocity - b.velocity
+	var speed = relative_velocity.length()
+	var collision_damage = get_landing_speed_damage(speed)
+	a.apply_damage(collision_damage)
+	b.apply_damage(collision_damage)
+
+
+func _destroy_from_queue() -> void:
+	for i in range(bodies.size() - 1):
+		if bodies[i].destroyed:
+			bodies.remove_at(i)
+			bodies[i].queue_free()
+
 func _physics_process(_delta: float) -> void:
 	# note that forces should not take delta into account, since they will be
 	# scaled by it when they are *applied*
@@ -76,9 +113,19 @@ func _physics_process(_delta: float) -> void:
 	if show_debug_lines && %DebugDrawings != null:
 		%DebugDrawings.queue_redraw()
 	
+	# start by destroying anything that should be gone
+	_destroy_from_queue()
+	
 	# reset all gravity
 	for b in bodies:
 		b.f_gravity = Vector3(0, 0, 0)
+		
+	for i in range(bodies.size()):
+		var b1 = bodies[i]
+		for j in range(i - 1):
+			var b2 = bodies[j]
+			if has_relevant_collision(b1, b2):
+				_handle_collision(b1, b2)
 	
 	# determine gravity between every pair of bodies
 	for i in range(bodies.size()):
@@ -91,9 +138,9 @@ func _physics_process(_delta: float) -> void:
 			if !Body.body_exerts_gravity(b1) || !Body.body_exerts_gravity(b2):
 				# if either shouldn't exert gravity, skip this whole step
 				continue
-			var r_squared = b1.position.distance_squared_to(b2.position)
+			var r_squared = b1.global_position.distance_squared_to(b2.global_position)
 			var f = gravitational_constant * b1.mass * b2.mass / r_squared
-			var dir = b1.position.direction_to(b2.position)
+			var dir = b1.global_position.direction_to(b2.global_position)
 			if use_tiered_physics:
 				if (b1.massTier > b2.massTier):
 					apply_grav(b2, -1 * f, dir)
@@ -113,16 +160,16 @@ func _physics_process(_delta: float) -> void:
 	# when the setting is on, stop all bodies that have left the area
 	if clamp_all_bodies:
 		# this is written naively, but it's not a long-term measure anyway
-		for body in bodies:
-			if body.position.x > playable_area.x:
+		for body in bodies.filter(Body.body_moves_by_veloc):
+			if body.global_position.x > playable_area.x:
 				body.velocity = Vector3.ZERO
-				body.position.x = playable_area.x
-			if body.position.y > playable_area.y:
+				body.global_position.x = playable_area.x
+			if body.global_position.y > playable_area.y:
 				body.velocity = Vector3.ZERO
-				body.position.y = playable_area.y
-			if body.position.x < 0:
+				body.global_position.y = playable_area.y
+			if body.global_position.x < 0:
 				body.velocity = Vector3.ZERO
-				body.position.x = 0
-			if body.position.y < 0:
+				body.global_position.x = 0
+			if body.global_position.y < 0:
 				body.velocity = Vector3.ZERO
-				body.position.y = 0
+				body.global_position.y = 0
