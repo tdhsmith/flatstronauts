@@ -14,17 +14,21 @@ var initial_position: Vector2 = position
 # what is the ratio between max thrust and the maximum *angular* thrust
 const ANGULAR_THRUST_SCALE: float = 15
 
-enum CargoType {
-	FUEL,
-	ENERGY,
-	ROCK,
-	ORE
-}
-
 @export var max_fuel: float = 100.0
+var current_fuel: float = 0
 @export var max_health: float = 10.0
-@export var cargo_capacity: float = 100.0
-@export var cargo_type: CargoType = CargoType.ORE
+var current_health: float = 0
+@export var init_cargo_capacity: float = 100.0
+@export var cargo_type: Cargo.CargoType = Cargo.CargoType.ORE
+var cargo: Cargo
+
+const START_WITH_MAX_FUEL_AND_HEALTH: bool = true
+
+func _init() -> void:
+	cargo = Cargo.new(cargo_type, init_cargo_capacity)
+	if START_WITH_MAX_FUEL_AND_HEALTH:
+		current_health = max_health
+		current_fuel = max_fuel
 
 func getThrustByRotation (percentage: float) -> Vector2:
 	# rotation = 0 means UP not RIGHT, and Y is measured from screen top so this
