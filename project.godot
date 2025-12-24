@@ -26,9 +26,14 @@ project/assembly_name="SpaceThing"
 
 [editor]
 
-movie_writer/movie_file="E:/Godot/PROJECTS/export_0005.avi"
+movie_writer/movie_file="E:/Godot/PROJECTS/export_0006.avi"
 version_control/plugin_name="GitPlugin"
 version_control/autoload_on_startup=true
+
+[global_group]
+
+bodies=""
+ships=""
 
 [input]
 

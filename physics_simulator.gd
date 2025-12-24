@@ -83,25 +83,78 @@ func has_relevant_collision(a: Body, b: Body) -> bool:
 	# finally, run the shape collision detector
 	return a.collision.collide(a.global_transform, b.collision, b.global_transform)
 
-const LANDING_SPEED_MAX: float = 20
+func is_separating(a: Body, b: Body) -> bool:
+	if Body.body_requires_parent(a) && a.parent_body == b:
+		var a_accel_normal = v32(a.f_total).project(a.global_position - b.global_position) / a.mass
+		if a_accel_normal.length() > b.get_surface_accel_for(gravitational_constant):
+			return true
+	elif Body.body_requires_parent(b) && b.parent_body == a:
+		var b_accel_normal = v32(b.f_total).project(b.global_position - a.global_position) / b.mass
+		if b_accel_normal.length() > a.get_surface_accel_for(gravitational_constant):
+			return true
+	return false
+
+const LANDING_SPEED_MAX: float = 40
 func get_landing_speed_damage(speed: float) -> float:
 	if speed > LANDING_SPEED_MAX:
 		return speed - LANDING_SPEED_MAX
 	return 0
 
 func _handle_collision(a: Body, b: Body) -> void:
-	var relative_velocity = a.velocity - b.velocity
+	var bigger: Body
+	var smaller: Body
+	if a.massTier == b.massTier:
+		return
+	if a.massTier > b.massTier:
+		bigger = a
+		smaller = b
+	else:
+		bigger = b
+		smaller = a
+	var relative_velocity = v32(a.velocity - b.velocity)
+	var lift_angle = relative_velocity.angle_to(smaller.global_position - bigger.global_position)
 	var speed = relative_velocity.length()
+	print("collision had %.2f speed (%.2fr %.0fdeg)" % [speed,lift_angle, posmod(lift_angle * 180/PI, 360)])
+	if lift_angle < PI / 2 && lift_angle > -PI / 2:
+		#breakpoint
+		return
 	var collision_damage = get_landing_speed_damage(speed)
 	a.apply_damage(collision_damage)
 	b.apply_damage(collision_damage)
+	if a.massTier != b.massTier && speed < LANDING_SPEED_MAX:
+		if smaller.p_state == Body.PhysicsState.FREE:
+			_attach_to(smaller, bigger, Body.PhysicsState.LANDED)
 
+func _attach_to (child: Body, parent: Body, state: Body.PhysicsState) -> void:
+	child.p_state = state
+	child.parent_body = parent
+	var unrotated_pos = child.global_position - parent.global_position
+	child.position = unrotated_pos.rotated(-parent.global_rotation)
+	child.rotation = child.global_rotation - parent.global_rotation
+	child.get_parent().remove_child(child)
+	parent.add_child(child)
+	
+func _detach (b1: Body, b2: Body, state: Body.PhysicsState) -> void:
+	var child = b1 if b1.parent_body == b2 else b2
+	var parent = b2 if b1.parent_body == b2 else b1
+	assert(Body.body_requires_parent(child))
+	assert(child.parent_body == parent)
+	child.p_state = state
+	child.parent_body = null
+	child.position = child.global_position
+	child.rotation = child.global_rotation
+	child.get_parent().remove_child(child)
+	container.add_child(child)
+
+static func _notnull (x: Variant) -> bool:
+	return x != null
 
 func _destroy_from_queue() -> void:
-	for i in range(bodies.size() - 1):
-		if bodies[i].destroyed:
-			bodies.remove_at(i)
+	for i in range(bodies.size()):
+		if !bodies[i] or bodies[i].destroyed:
 			bodies[i].queue_free()
+			bodies[i] = null
+	bodies = bodies.filter(PhysicsSimulator._notnull)
 
 func _physics_process(_delta: float) -> void:
 	# note that forces should not take delta into account, since they will be
@@ -126,6 +179,8 @@ func _physics_process(_delta: float) -> void:
 			var b2 = bodies[j]
 			if has_relevant_collision(b1, b2):
 				_handle_collision(b1, b2)
+			elif is_separating(b1, b2):
+				_detach(b1, b2, Body.PhysicsState.FREE)
 	
 	# determine gravity between every pair of bodies
 	for i in range(bodies.size()):
@@ -149,6 +204,8 @@ func _physics_process(_delta: float) -> void:
 					apply_grav(b1, f, dir)
 					#print("%s exerting %2f N on %s (unilateral)" % [b2.name, f, b1.name])
 				else:
+					if b1.massTier == Body.MassTier.JUNK:
+						continue # don't gravitate junk to itself
 					#print("%s+%s exerting %2f N on each other at %2f ratio" % [b1.name, b2.name, f, same_tier_effect])
 					f *= same_tier_effect
 					apply_grav(b1, f, dir)

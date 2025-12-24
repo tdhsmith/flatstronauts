@@ -55,8 +55,7 @@ static func state_requires_parent(s: PhysicsState) -> bool:
 	return (s == PhysicsState.LANDED || s == PhysicsState.ATTACHED)
 static func state_has_collisions(s: PhysicsState) -> bool:
 	return s != PhysicsState.SCRIPTED
-static func body_exerts_gravity(b: Body) -> bool:
-	return Body.state_exerts_gravity(b.p_state)
+
 static func body_calculates_accel(b: Body) -> bool:
 	return Body.state_calculates_accel(b.p_state)
 static func body_moves_by_veloc(b: Body) -> bool:
@@ -65,25 +64,29 @@ static func body_requires_parent(b: Body) -> bool:
 	return Body.state_requires_parent(b.p_state)
 static func body_has_collisions(b: Body) -> bool:
 	return Body.state_has_collisions(b.p_state)
+static func body_exerts_gravity(b: Body) -> bool:
+	return Body.state_exerts_gravity(b.p_state)
 
 # Whether child Sprite2D nodes are automatically rescaled to match this Body's
 # current radius
 @export var autoscale_sprites: bool = true
-@export_tool_button("Run Autoscale") var autoscaler_fn = update_child_sprites
+@export_tool_button("Run Autoscale") var autoscaler_fn = _update_child_sprites
 
 # The radius represents the bounding circle of an object, as well as the (half-)
 # side length of any auto-scaled sprites
 @export var radius: float = 20:
 	set(newRadius):
 		radius = newRadius
-		if autoscale_sprites:
-			update_child_sprites()
-		if collision is CircleShape2D:
-			_update_collision_circle()
+		_update_radius(newRadius)
 	get():
 		return radius
 
-func update_child_sprites() -> void:
+func _update_radius(_r: float) -> void:
+	if autoscale_sprites:
+		_update_child_sprites()
+	if collision is CircleShape2D:
+		_update_collision_circle()
+func _update_child_sprites() -> void:
 	for child in get_children():
 		if child is Sprite2D:
 			var targetScale = Vector2(2*radius, 2*radius) / child.texture.get_size()
@@ -95,13 +98,6 @@ func update_child_sprites() -> void:
 func _update_collision_circle() -> void:
 	(collision as CircleShape2D).radius = radius
 
-func apply_damage(_amt: float, _reason: String = "") -> void:
-	pass # children may use this
-
-func explode() -> void:
-	# TODO create bits
-	destroyed = true
-
 # A user-facing name for this body
 @export var label: String = "":
 	get():
@@ -109,29 +105,40 @@ func explode() -> void:
 			return name
 		else:
 			return label
+
+
 # The current state of the body, see PhysicsState for details
 @export var p_state: PhysicsState = PhysicsState.FREE
-
-
-var destroyed: bool = false
-
 # helper to get the enum key for the current state, useful for debug output
 func get_state_label() -> String:
 	return PhysicsState.find_key(p_state)
+# whether this object will still rotate while FIXED or SCRIPTED, useful
+# for the "anchor planet/star" in a system
+@export var allow_rotation_during_nonmove_state: bool = false
 
-# The maximum tier of bodies that this Body can exert influence on
+# The maximum tier of bodies that this Body can exert influence on, IFF the
+# simulator's use_tiered_physics setting is on.
 @export var massTier: MassTier = MassTier.JUNK
 # The Body's mass, which scales all forces upon it
 @export_range(0, 10000, 1, "exp", "or_greater") var mass: float = 1
 # The Body's directional speed, where z is the rotation
 @export var velocity: Vector3 = Vector3.ZERO
-
+# The shape of this body's collisions. NOTE we are currently running collisions
+# ourselves since we eschewed too much of the physics engine to make RigidBody
+# etc work. We might want to go back though, we'll see.
 @export var collision: Shape2D = CircleShape2D.new()
 
 @export_group("Attachement & Orbits")
+# When this body is in an ATTACHED or LANDED state, this is a reference to the
+# body that it is attached *to* or landed *on*
 @export var parent_body: Body = null
+# When this body is in a STABLE_ORBIT, these numbers define "which" orbit and
+# position within it, which are then used to simulate its motion
 @export var stable_orbit_number: int = -1
 @export var stable_orbit_phase: float = 0
+
+func get_surface_accel_for (g: float) -> float:
+	return (g * mass) / (radius * radius)
 
 # The current gravity felt by this Body, with z being rotation (unused)
 var f_gravity: Vector3 = Vector3.ZERO
@@ -144,10 +151,24 @@ var f_total: Vector3 = Vector3.ZERO:
 	get():
 		return f_gravity + f_other + f_own
 
+var last_global_position: Vector2 = global_position
+
+# whether this body has been flagged for deletion
+var destroyed: bool = false
+
+func _ready() -> void:
+	add_to_group("bodies")
+
+func apply_damage(_amt: float, _reason: String = "") -> void:
+	pass # children may use this
+
+func explode() -> void:
+	print("exploding %s when |%v| = %.1f" % [label, velocity, velocity.length()])
+	destroyed = true
+
 # Helper function to recursively find all Bodies within this part of the node
 # ALERT this code has a double-counting bug in it, so I switched to a diff
 # implementation until it was needed (the root can use simpler code anyway)
-
 #static func get_child_bodies(base: Node, acc: Array[Body] = []) -> Array[Body]:
 	#var children: Array[Body] = [];
 	#for child in base.get_children():
@@ -171,9 +192,17 @@ func _physics_process(delta: float) -> void:
 	if Body.state_calculates_accel(p_state):
 		#print("apply accel to %s in state %s" % [label, get_state_label()])
 		velocity += totalAccel
+	else:
+		var velocity_from_step = (global_position - last_global_position) / delta
+		velocity.x = velocity_from_step.x
+		velocity.y = velocity_from_step.y
+	last_global_position = global_position
 
 	if Body.state_moves_by_veloc(p_state):
 		# add velocity vector to position
 		position.x += velocity[0] * delta
 		position.y += velocity[1] * delta
 		rotation += (velocity[2] / 360)
+	else:
+		if allow_rotation_during_nonmove_state:
+			rotation += (velocity[2] / 360)

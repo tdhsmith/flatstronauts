@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://b0wto2st3ob4"]
+[gd_scene load_steps=19 format=3 uid="uid://b0wto2st3ob4"]
 
 [ext_resource type="Script" uid="uid://bvd2h3yw6x5kt" path="res://physics_simulator.gd" id="1_4qb3o"]
 [ext_resource type="Script" uid="uid://cupg67grun56d" path="res://starfield.gd" id="2_1ro0w"]
@@ -12,6 +12,16 @@
 [ext_resource type="Script" uid="uid://byjho4m6l2ik5" path="res://simple_draggable_camera.gd" id="10_616xp"]
 [ext_resource type="Script" uid="uid://bswjsmnxw5i3o" path="res://selected_data_label.gd" id="11_0gmoi"]
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_4qb3o"]
+radius = 80.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1ro0w"]
+radius = 40.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vj3ng"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ugoup"]
+
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_ho7wi"]
 particle_flag_disable_z = true
 angular_velocity_min = 84.709984
@@ -20,6 +30,8 @@ gravity = Vector3(0, 0, 0)
 scale_min = 2.0
 scale_max = 4.0
 color = Color(1, 0.12941177, 1, 1)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_4mqhy"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_pc61c"]
 font_color = Color(0.86898494, 0.8689849, 0.8689849, 1)
@@ -42,14 +54,16 @@ polygon = PackedVector2Array(0, 0, 2000, 0, 2000, 2000, 0, 2000)
 
 [node name="TestPlanet" type="Node2D" parent="."]
 z_index = 1
-position = Vector2(648, 296)
+position = Vector2(896, 536)
 script = ExtResource("3_vj3ng")
 radius = 80.0
 label = "TestPlanet"
 p_state = 4
+allow_rotation_during_nonmove_state = true
 massTier = 3
 mass = 25.0
 velocity = Vector3(5, 0, 1)
+collision = SubResource("CircleShape2D_4qb3o")
 
 [node name="Sprite2D" type="Sprite2D" parent="TestPlanet"]
 z_as_relative = false
@@ -58,13 +72,14 @@ texture = ExtResource("4_ugoup")
 
 [node name="TestMoon" type="Node2D" parent="."]
 z_index = 1
-position = Vector2(192, 368)
+position = Vector2(640, 536)
 script = ExtResource("3_vj3ng")
 radius = 40.0
 label = "TestMoon"
 massTier = 3
 mass = 10.0
-velocity = Vector3(25, 25, 4)
+velocity = Vector3(0, -22, 3)
+collision = SubResource("CircleShape2D_1ro0w")
 
 [node name="NonplayerShip2" type="Node2D" parent="TestMoon" node_paths=PackedStringArray("parent_body")]
 position = Vector2(0, -50)
@@ -73,9 +88,13 @@ script = ExtResource("6_rgdj5")
 selected = false
 label = "NonplayerShip"
 p_state = 1
+massTier = 1
 mass = 2.0
 velocity = Vector3(0, 30, 1)
+collision = SubResource("CircleShape2D_vj3ng")
 parent_body = NodePath("..")
+stable_orbit_number = 0
+stable_orbit_phase = Vector3(0, 0, 0)
 
 [node name="Sprite2D" type="Sprite2D" parent="TestMoon/NonplayerShip2"]
 rotation = 1.5707964
@@ -88,12 +107,16 @@ scale = Vector2(0.8, 0.8)
 texture = ExtResource("5_4mqhy")
 
 [node name="PlayerShip" type="Node2D" parent="."]
-position = Vector2(360, 88)
+position = Vector2(896, 328)
 script = ExtResource("6_rgdj5")
 max_fuel = 50.0
 label = "PlayerShip"
+massTier = 1
 mass = 2.0
 velocity = Vector3(0, 1.28, 0)
+collision = SubResource("CircleShape2D_ugoup")
+stable_orbit_number = 0
+stable_orbit_phase = Vector3(0, 0, 0)
 
 [node name="Thrusters" type="GPUParticles2D" parent="PlayerShip"]
 scale = Vector2(0.99999994, 0.99999994)
@@ -110,13 +133,17 @@ scale = Vector2(0.078125, 0.078125)
 texture = ExtResource("8_sgixy")
 
 [node name="NonplayerShip" type="Node2D" parent="."]
-position = Vector2(840, 287.99997)
+position = Vector2(368, 640)
 rotation = 1.5707964
 script = ExtResource("6_rgdj5")
 selected = false
 label = "NonplayerShip"
+massTier = 1
 mass = 2.0
-velocity = Vector3(0, 30, 1)
+velocity = Vector3(0, -30, 1)
+collision = SubResource("CircleShape2D_4mqhy")
+stable_orbit_number = 0
+stable_orbit_phase = Vector3(0, 0, 0)
 
 [node name="Sprite2D" type="Sprite2D" parent="NonplayerShip"]
 rotation = 1.5707964
@@ -125,11 +152,16 @@ texture = ExtResource("8_sgixy")
 
 [node name="DebugDrawings" type="Node2D" parent="."]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.25882354)
 script = ExtResource("9_3ouot")
+rendering = true
+opacity = 0.1
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("follow_target")]
 position = Vector2(800, 448)
 script = ExtResource("10_616xp")
+follow_mode = true
+follow_target = NodePath("../TestPlanet")
 
 [node name="UI" type="CanvasLayer" parent="."]
 

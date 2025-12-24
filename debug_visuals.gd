@@ -18,6 +18,12 @@ const FORCE_VECTOR_VISUAL_SCALE: float = 40.0
 
 @export var body_radius: bool = true
 
+@export_range(0, 1) var opacity: float:
+	get():
+		return modulate.a
+	set(o):
+		modulate = Color(1, 1, 1, o)
+
 #@export_tool_button("Force Update") var update_fn = queue_redraw
 
 # Helper function to create arrows. It also allows a "maximum length": if an
@@ -40,7 +46,14 @@ func draw_arrow (a: Vector2, b: Vector2, c: Color, headSize: float = 5, doubleCa
 #func update_for_editor():
 	#queue_redraw()
 
+func _input(_event: InputEvent) -> void:
+	if Input.is_key_pressed(KEY_D):
+		print("toggling render")
+		rendering = !rendering
+
 func _draw() -> void:
+	if !rendering:
+		return
 	var physicsManager = PhysicsSimulator.find(self)
 	if physicsManager:
 		if physics_vectors || body_radius:
