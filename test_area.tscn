@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3 uid="uid://b0wto2st3ob4"]
+[gd_scene load_steps=30 format=3 uid="uid://b0wto2st3ob4"]
 
 [ext_resource type="Script" uid="uid://dxlt63gr1yc23" path="res://physics_root.gd" id="1_omcy0"]
 [ext_resource type="Script" uid="uid://cupg67grun56d" path="res://starfield.gd" id="2_1ro0w"]
@@ -14,14 +14,16 @@
 [ext_resource type="Script" uid="uid://byjho4m6l2ik5" path="res://simple_draggable_camera.gd" id="10_616xp"]
 [ext_resource type="Script" uid="uid://bswjsmnxw5i3o" path="res://selected_data_label.gd" id="11_0gmoi"]
 [ext_resource type="Texture2D" uid="uid://cwyyr0maarepx" path="res://pre-assets/13 Border 03.png" id="13_omcy0"]
+[ext_resource type="Texture2D" uid="uid://2rgra1flbpaa" path="res://pre-assets/10 Border 03.png" id="14_3ouot"]
 [ext_resource type="Script" uid="uid://d4h4kkis0yygx" path="res://manual_control.gd" id="14_ugoup"]
 [ext_resource type="Shader" uid="uid://b8a34uovnqmyy" path="res://glow_all.gdshader" id="15_4mqhy"]
 [ext_resource type="Texture2D" uid="uid://blbo6nlfs2o0o" path="res://pre-assets/select.png" id="15_rgdj5"]
+[ext_resource type="Script" uid="uid://bnbhbb0hdris8" path="res://pause_menu.gd" id="18_sgixy"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_omcy0"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_4qb3o"]
 radius = 80.0
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_omcy0"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_1ro0w"]
 shader = ExtResource("4_vj3ng")
@@ -49,6 +51,13 @@ color = Color(1, 0.12941177, 1, 1)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_3ouot"]
 
+[sub_resource type="SystemFont" id="SystemFont_616xp"]
+font_names = PackedStringArray("Cascadia Code")
+
+[sub_resource type="LabelSettings" id="LabelSettings_0gmoi"]
+font = SubResource("SystemFont_616xp")
+font_size = 48
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_rgdj5"]
 shader = ExtResource("15_4mqhy")
 shader_parameter/hpass = 1.0
@@ -73,6 +82,21 @@ invert_border = 20.0
 polygon = PackedVector2Array(0, 0, 2000, 0, 2000, 2000, 0, 2000)
 metadata/_edit_lock_ = true
 
+[node name="NonplayerShip2" type="Node2D" parent="."]
+modulate = Color(3, 3, 3, 1)
+position = Vector2(832.00006, 471.00003)
+rotation = -2.2282138
+script = ExtResource("6_rgdj5")
+MAX_THRUST = 2.0
+label = "NonplayerShip2"
+collision = SubResource("CircleShape2D_omcy0")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="NonplayerShip2"]
+rotation = 1.5707964
+scale = Vector2(0.078125, 0.078125)
+texture = ExtResource("8_sgixy")
+
 [node name="TestPlanet" type="Node2D" parent="."]
 z_index = 1
 position = Vector2(899, 536)
@@ -86,21 +110,6 @@ mass = 25.0
 velocity = Vector3(5, 0, 1)
 collision = SubResource("CircleShape2D_4qb3o")
 metadata/_edit_group_ = true
-
-[node name="NonplayerShip2" type="Node2D" parent="TestPlanet"]
-modulate = Color(3, 3, 3, 1)
-position = Vector2(-67, -60)
-rotation = -2.2282138
-script = ExtResource("6_rgdj5")
-MAX_THRUST = 2.0
-label = "NonplayerShip2"
-collision = SubResource("CircleShape2D_omcy0")
-metadata/_edit_group_ = true
-
-[node name="Sprite2D" type="Sprite2D" parent="TestPlanet/NonplayerShip2"]
-rotation = 1.5707964
-scale = Vector2(0.078125, 0.078125)
-texture = ExtResource("8_sgixy")
 
 [node name="Sprite2D" type="Sprite2D" parent="TestPlanet"]
 z_as_relative = false
@@ -189,6 +198,48 @@ metadata/_edit_group_ = true
 [node name="AudioListener2D" type="AudioListener2D" parent="Camera"]
 
 [node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="PauseMenu" type="Control" parent="HUD"]
+visible = false
+layout_mode = 3
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -199.25
+offset_top = -120.5
+offset_right = 199.25
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("18_sgixy")
+metadata/_edit_lock_ = true
+
+[node name="NinePatchRect2" type="NinePatchRect" parent="HUD/PauseMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("14_3ouot")
+region_rect = Rect2(0, 128, 64, 64)
+patch_margin_left = 16
+patch_margin_top = 16
+patch_margin_right = 16
+patch_margin_bottom = 16
+
+[node name="Label" type="Label" parent="HUD/PauseMenu"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Game paused!"
+label_settings = SubResource("LabelSettings_0gmoi")
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="NinePatchRect" type="NinePatchRect" parent="HUD"]
 offset_left = 1388.0

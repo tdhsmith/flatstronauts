@@ -18,6 +18,25 @@ extends Node2D
 # what node should be used as the primary container for bodies
 @export var container: Node = self
 
+func set_all_body_activity (on: bool) -> int:
+	for b: Body in bodies:
+		b.set_physics_process(on)
+	return bodies.size()
+
+# TODO we should also appropriately use SceneTree.paused, which manages the
+# behavior of all nodes relative to their "process mode". With that approach we
+# could probably even forego the manually physics deactivation of all bodies...
+# https://docs.godotengine.org/en/latest/tutorials/scripting/pausing_games.html
+var is_paused: bool = false:
+	set(new_pause):
+		if (new_pause != is_paused):
+			set_all_body_activity(!new_pause)
+		is_paused = new_pause
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause"):
+		is_paused = !is_paused
+
 # array tracking all of the Body nodes in the scene
 var bodies: Array[Body] = []
 # dictionary that stratifies the Body arrays by their MassTier
@@ -167,6 +186,10 @@ func _physics_process(_delta: float) -> void:
 	
 	# start by destroying anything that should be gone
 	_destroy_from_queue()
+	
+	if is_paused:
+		# toggling body execution on and off is handled by the is_paused setter!
+		return
 	
 	# reset all gravity
 	for b in bodies:
