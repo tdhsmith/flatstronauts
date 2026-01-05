@@ -18,9 +18,22 @@ var drag_start_camera: Vector2 = Vector2.ZERO
 @export var follow_mode: bool = false
 @export var follow_target: Body
 
+#func _ready() -> void:
+	#var listener = find_child("AudioListener2D") as AudioListener2D
+	#listener.make_current()
+
 func _process(_delta: float):
 	if follow_mode:
-		position = follow_target.global_position
+		if !follow_target:
+			follow_mode = false
+		else:
+			position = follow_target.global_position
+
+# convert a camera event's positional vector (relative to the viewport) to one
+# based in the game space. There's definitely a way to do this with built-ins
+# but all the various transforms got to me. TODO
+func camera_to_scene_coords(pos: Vector2) -> Vector2:
+	return ((pos - get_viewport_rect().size / 2) / zoom) + global_position
 
 func _input(event: InputEvent) -> void:
 	if event.is_action("cameraViewAll"):
@@ -34,13 +47,12 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.is_action("cameraViewSelected"):
 		drag_active = false
-		var psn = PhysicsSimulator.find(self)
-		var ship = Ship.find_selected(psn)
-		if ship != null:
-			position = ship.position
+		var target = %ManualControl.selected
+		if target != null:
+			position = target.global_position
 			if Input.is_key_pressed(KEY_SHIFT):
 				# start following!
-				follow_target = ship
+				follow_target = target
 				follow_mode = true
 				return 
 		follow_mode = false

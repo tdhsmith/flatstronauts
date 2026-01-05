@@ -46,17 +46,13 @@ func _ready() -> void:
 func setup():
 	stars = []
 	bounds_min = Vector2.ZERO - CAMERA_BUFFER
-	var ps = get_parent()
-	if ps is PhysicsSimulator:
-		bounds_max = ps.playable_area + CAMERA_BUFFER
-	else:
-		print("Starfield is not child of PhysicsManager!")
+	bounds_max = Simulator.playable_area + CAMERA_BUFFER
 	for i in range(quantity):
 		stars.push_back(Star.new(
 			rand_between_vecs(bounds_min, bounds_max),
 			star_color_variance,
 			star_opacity))
-	print("Made %d stars" % quantity)
+	#print("Made %d stars" % quantity)
 	queue_redraw()
 
 # expose a button that redraws the background (useful if the play area changes)

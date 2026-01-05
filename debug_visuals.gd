@@ -51,35 +51,37 @@ func _input(_event: InputEvent) -> void:
 		print("toggling render")
 		rendering = !rendering
 
+func _process(_delta: float) -> void:
+	if rendering:
+		queue_redraw()
+
 func _draw() -> void:
 	if !rendering:
 		return
-	var physicsManager = PhysicsSimulator.find(self)
-	if physicsManager:
-		if physics_vectors || body_radius:
-			for body in physicsManager.bodies:
-				if physics_vectors:
-					draw_arrow(
-						body.global_position,
-						body.global_position + PhysicsSimulator.v32(body.velocity),
-						Color.RED)
-					draw_arrow(
-						body.global_position,
-						body.global_position + PhysicsSimulator.v32(body.f_total * FORCE_VECTOR_VISUAL_SCALE),
-						Color.YELLOW)
-				if body_radius:
-					draw_circle(
-						body.global_position,
-						body.radius,
-						Color.AQUA,
-						false,
-						1.0
-					)
-		if playable_area:
-			draw_dashed_line(Vector2.ZERO, Vector2(0, physicsManager.playable_area.y), Color.GRAY)
-			draw_dashed_line(Vector2.ZERO, Vector2(physicsManager.playable_area.x, 0), Color.GRAY)
-			draw_dashed_line(Vector2(0, physicsManager.playable_area.y), physicsManager.playable_area, Color.GRAY)
-			draw_dashed_line(Vector2(physicsManager.playable_area.x, 0), physicsManager.playable_area, Color.GRAY)
+	if physics_vectors || body_radius:
+		for body in Simulator.bodies:
+			if physics_vectors:
+				draw_arrow(
+					body.global_position,
+					body.global_position + PhysicsSimulator.v32(body.velocity),
+					Color.RED)
+				draw_arrow(
+					body.global_position,
+					body.global_position + PhysicsSimulator.v32(body.f_total * FORCE_VECTOR_VISUAL_SCALE),
+					Color.YELLOW)
+			if body_radius:
+				draw_circle(
+					body.global_position,
+					body.radius,
+					Color.AQUA,
+					false,
+					1.0
+				)
+	if playable_area:
+		draw_dashed_line(Vector2.ZERO, Vector2(0, Simulator.playable_area.y), Color.GRAY)
+		draw_dashed_line(Vector2.ZERO, Vector2(Simulator.playable_area.x, 0), Color.GRAY)
+		draw_dashed_line(Vector2(0, Simulator.playable_area.y), Simulator.playable_area, Color.GRAY)
+		draw_dashed_line(Vector2(Simulator.playable_area.x, 0), Simulator.playable_area, Color.GRAY)
 	else:
 		print("DebugDrawings is not child of PhysicsSimulator!")
 		rendering = false

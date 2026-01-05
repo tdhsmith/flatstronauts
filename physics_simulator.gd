@@ -2,7 +2,7 @@ class_name PhysicsSimulator
 extends Node2D
 
 # how strong is gravity; unit would be canvas_pixel^3/(pixel_mass*tick^2)
-@export var gravitational_constant: float = 9.8
+@export var gravitational_constant: float = 100.0
 # whether to apply the "tiered" model, where forces apply unidirectionally when
 # masses are of different overall tiers
 @export var use_tiered_physics: bool = true
@@ -11,10 +11,8 @@ extends Node2D
 # following an orbit around a star
 @export_range(0, 1) var same_tier_effect: float = 1.0
 
-@export var show_debug_lines: bool = true
-
 # the size of the current scene's "playable area"
-@export var playable_area: Vector2 = Vector2(1200, 800)
+@export var playable_area: Vector2 = Vector2(2000, 2000)
 # whether a Body leaving the playable area should be held to its bounds
 @export var clamp_all_bodies: bool = true
 # what node should be used as the primary container for bodies
@@ -26,9 +24,10 @@ var bodies: Array[Body] = []
 var bodies_by_tier: Dictionary[Body.MassTier, Array] = {}
 
 static var SIM_NAME = "Physics"
-static func find (n: Node) -> PhysicsSimulator:
-	var psn = n.get_node("/root/" + PhysicsSimulator.SIM_NAME)
+static func find (_n: Node) -> PhysicsSimulator:
+	var psn = Simulator
 	assert(psn is PhysicsSimulator)
+	breakpoint
 	return psn
 
 func sort_bodies_into_tiers() -> void:
@@ -39,7 +38,7 @@ static func v32 (v: Vector3) -> Vector2:
 	return Vector2(v.x, v.y)
 
 func find_all_body_descendants() -> Array[Body]:
-	var body_nodes = find_children("*", "Body", true)
+	var body_nodes = container.find_children("*", "Body", true)
 	var out: Array[Body] = []
 	# this might be overly defensive: I'm not yet sure if the string "Body" in
 	# find_children will truly only return Body nodes. In any case, the static
@@ -51,17 +50,18 @@ func find_all_body_descendants() -> Array[Body]:
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	assert(name == PhysicsSimulator.SIM_NAME, "PhysicsSimulator node must be named '%s'" % PhysicsSimulator.SIM_NAME)
 	# Make the physics process fire earlier than default. Since the simulator is
 	# currently expected to be the root and _physics_process fires in pre-trav
 	# order, this wouldn't typically matter, but I do it simply to express that
 	# this node is designed to calculate global forces FIRST for all children
 	# and then those children can apply said forces to themselves.
 	process_physics_priority = -5
-	# get all initial bodies
+
+func start_on(new_container: Node) -> void:
+	container = new_container
 	bodies = find_all_body_descendants()
-	var psa = PackedStringArray(bodies.map(func (b: Body): return b.name))
-	print("bodies: ", ",".join(psa))
+	var psa = PackedStringArray(bodies.map(func (b: Body): return b.label))
+	print("found %d bodies on %s [%s]" % [bodies.size(), container.name, ",".join(psa)])
 	sort_bodies_into_tiers()
 
 static func apply_grav(b: Body, force_scalar: float, dir: Vector2) -> void:
@@ -86,10 +86,14 @@ func has_relevant_collision(a: Body, b: Body) -> bool:
 func is_separating(a: Body, b: Body) -> bool:
 	if Body.body_requires_parent(a) && a.parent_body == b:
 		var a_accel_normal = v32(a.f_total).project(a.global_position - b.global_position) / a.mass
+		#if a_accel_normal.length() > 0:
+			#print("%s accel %.2f" % [a.label, a_accel_normal.length()])
 		if a_accel_normal.length() > b.get_surface_accel_for(gravitational_constant):
 			return true
 	elif Body.body_requires_parent(b) && b.parent_body == a:
 		var b_accel_normal = v32(b.f_total).project(b.global_position - a.global_position) / b.mass
+		#if b_accel_normal.length() > 0:
+			#print("%s accel %.2f" % [b.label, b_accel_normal.length()])
 		if b_accel_normal.length() > a.get_surface_accel_for(gravitational_constant):
 			return true
 	return false
@@ -152,19 +156,14 @@ static func _notnull (x: Variant) -> bool:
 func _destroy_from_queue() -> void:
 	for i in range(bodies.size()):
 		if !bodies[i] or bodies[i].destroyed:
-			bodies[i].queue_free()
+			if bodies[i]:
+				bodies[i].queue_free()
 			bodies[i] = null
 	bodies = bodies.filter(PhysicsSimulator._notnull)
 
 func _physics_process(_delta: float) -> void:
 	# note that forces should not take delta into account, since they will be
 	# scaled by it when they are *applied*
-	
-	# nodes don't automatically redraw themselves, so we help the debug drawer
-	# here. TODO reconsider this management? That class could just be queueing
-	# itself and this is unnecessary interaction.
-	if show_debug_lines && %DebugDrawings != null:
-		%DebugDrawings.queue_redraw()
 	
 	# start by destroying anything that should be gone
 	_destroy_from_queue()

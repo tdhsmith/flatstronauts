@@ -3,6 +3,15 @@ extends GPUParticles2D
 # Relative relationship between thrust and the "size" of the particle ejection
 @export var thrust_animation_scale: float = 30.0
 
+func setAudio(on: bool) -> void:
+	var thrust_audio = find_child("AudioStreamPlayer2D")
+	if thrust_audio is AudioStreamPlayer2D:
+		if on and thrust_audio.playing == false:
+			thrust_audio.play()
+		if !on and thrust_audio.playing == true:
+			thrust_audio.stop()
+		#thrust_audio.playing = on
+
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	if process_material is ParticleProcessMaterial:
@@ -11,9 +20,11 @@ func _process(delta: float) -> void:
 		var thrust_scalar = planar_thrust.length()
 		if (thrust_scalar < 0.1):
 			emitting = false
+			setAudio(false)
 			return
 		else:
 			emitting = true
+			setAudio(true)
 		# This is simply left because the node is relatively positioned to
 		# its parent, and right is the 0deg rotation. If/when a ship can thrust
 		# in non-forward directions, this will need updating.

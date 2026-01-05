@@ -53,6 +53,8 @@ static func state_moves_by_veloc(s: PhysicsState) -> bool:
 	return s == PhysicsState.FREE
 static func state_requires_parent(s: PhysicsState) -> bool:
 	return (s == PhysicsState.LANDED || s == PhysicsState.ATTACHED)
+static func state_can_rotate_while_fixed(s: PhysicsState) -> bool:
+	return s == PhysicsState.LANDED
 static func state_has_collisions(s: PhysicsState) -> bool:
 	return s != PhysicsState.SCRIPTED
 
@@ -70,6 +72,7 @@ static func body_exerts_gravity(b: Body) -> bool:
 # Whether child Sprite2D nodes are automatically rescaled to match this Body's
 # current radius
 @export var autoscale_sprites: bool = true
+@export_range(0.0, 1.0) var autoscale_size: float = 1.0
 @export_tool_button("Run Autoscale") var autoscaler_fn = _update_child_sprites
 
 # The radius represents the bounding circle of an object, as well as the (half-)
@@ -106,7 +109,6 @@ func _update_collision_circle() -> void:
 		else:
 			return label
 
-
 # The current state of the body, see PhysicsState for details
 @export var p_state: PhysicsState = PhysicsState.FREE
 # helper to get the enum key for the current state, useful for debug output
@@ -128,7 +130,7 @@ func get_state_label() -> String:
 # etc work. We might want to go back though, we'll see.
 @export var collision: Shape2D = CircleShape2D.new()
 
-@export_group("Attachement & Orbits")
+@export_group("Attachment & Orbits")
 # When this body is in an ATTACHED or LANDED state, this is a reference to the
 # body that it is attached *to* or landed *on*
 @export var parent_body: Body = null
@@ -152,6 +154,10 @@ var f_total: Vector3 = Vector3.ZERO:
 		return f_gravity + f_other + f_own
 
 var last_global_position: Vector2 = global_position
+# we store initial position so we can reset it with special debug functions
+var initial_position: Vector2 = position
+var initial_rotation: float = rotation
+var initial_state: PhysicsState = p_state
 
 # whether this body has been flagged for deletion
 var destroyed: bool = false
@@ -165,6 +171,49 @@ func apply_damage(_amt: float, _reason: String = "") -> void:
 func explode() -> void:
 	print("exploding %s when |%v| = %.1f" % [label, velocity, velocity.length()])
 	destroyed = true
+
+func is_thrustable() -> bool:
+	return false
+func apply_thrust(_forward: float, _rotational: float, _delta: float) -> bool:
+	return false
+
+func reset_to_initial() -> void:
+	position = initial_position
+	rotation = initial_rotation
+	if body_requires_parent(self):
+		Simulator._detach(self, parent_body, PhysicsState.FREE)
+
+func halt() -> void:
+	f_own = Vector3(0, 0, 0)  # necessary?
+	velocity = Vector3(0, 0, 0)
+
+enum RichDescriptor {
+	TITLE,
+	MOVEMENT,
+	CONTROL,
+	CARGO,
+	PROGRESS
+}
+
+const PREFER_SHOW_PARENT_LINK: bool = false
+func _move_state(s: Body) -> String:
+	var state_str = s.get_state_label()
+	if Body.body_requires_parent(s):
+		state_str += " to %s" % s.parent_body.label
+	state_str += "\n\tv%.0v\t[u]%.1f[/u]" % [s.velocity, PhysicsSimulator.v32(s.velocity).length()]
+	state_str += "\n  f_g%.0v\t[u]%.1f[/u]" % [s.f_gravity, s.f_gravity.length()]
+	state_str += "\n  f_t%.0v\t[u]%.1f[/u]" % [s.f_own, s.f_own.length()]
+	return state_str
+
+func get_rich_description(section: RichDescriptor) -> String:
+	match section:
+		RichDescriptor.TITLE:
+			return "[b]body %s[/b]\n%.1f@%s" % [label, mass, MassTier.find_key(massTier)]
+		RichDescriptor.MOVEMENT:
+			return _move_state(self)
+		RichDescriptor.CONTROL:
+			return "  ea %.2f" % get_surface_accel_for(Simulator.gravitational_constant)
+	return "'%s'[%d]" % [label, section]
 
 # Helper function to recursively find all Bodies within this part of the node
 # ALERT this code has a double-counting bug in it, so I switched to a diff
@@ -196,6 +245,8 @@ func _physics_process(delta: float) -> void:
 		var velocity_from_step = (global_position - last_global_position) / delta
 		velocity.x = velocity_from_step.x
 		velocity.y = velocity_from_step.y
+		if Body.state_can_rotate_while_fixed(p_state):
+			velocity.z = f_total.z / mass * 100
 	last_global_position = global_position
 
 	if Body.state_moves_by_veloc(p_state):
@@ -204,5 +255,5 @@ func _physics_process(delta: float) -> void:
 		position.y += velocity[1] * delta
 		rotation += (velocity[2] / 360)
 	else:
-		if allow_rotation_during_nonmove_state:
+		if allow_rotation_during_nonmove_state or Body.state_can_rotate_while_fixed(p_state):
 			rotation += (velocity[2] / 360)

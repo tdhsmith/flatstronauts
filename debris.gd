@@ -8,7 +8,6 @@ var base_color: Color = Color.WHEAT
 const CLOSE_LOOP: bool = true
 
 func _update_radius(r: float) -> void:
-	print("UPDATE R %f" % r)
 	#random_poly()
 	super._update_radius(r)
 

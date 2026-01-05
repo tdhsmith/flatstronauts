@@ -1,26 +1,42 @@
-[gd_scene load_steps=19 format=3 uid="uid://b0wto2st3ob4"]
+[gd_scene load_steps=26 format=3 uid="uid://b0wto2st3ob4"]
 
-[ext_resource type="Script" uid="uid://bvd2h3yw6x5kt" path="res://physics_simulator.gd" id="1_4qb3o"]
+[ext_resource type="Script" uid="uid://dxlt63gr1yc23" path="res://physics_root.gd" id="1_omcy0"]
 [ext_resource type="Script" uid="uid://cupg67grun56d" path="res://starfield.gd" id="2_1ro0w"]
 [ext_resource type="Script" uid="uid://c70hhxu722w0j" path="res://physics_body.gd" id="3_vj3ng"]
 [ext_resource type="Texture2D" uid="uid://dnn68tvmc1u8c" path="res://pre-assets/planet_terran.png" id="4_ugoup"]
+[ext_resource type="Shader" uid="uid://8t3o4hsax4l8" path="res://planet_fresnel.gdshader" id="4_vj3ng"]
 [ext_resource type="Texture2D" uid="uid://b8klggiy3hb6n" path="res://pre-assets/moon.png" id="5_4mqhy"]
 [ext_resource type="Script" uid="uid://ciq4arbt7sgvf" path="res://ship.gd" id="6_rgdj5"]
 [ext_resource type="Script" uid="uid://3fout87ap5jk" path="res://anim_thrust.gd" id="7_omcy0"]
 [ext_resource type="Texture2D" uid="uid://bh6kq7hm0ygw" path="res://pre-assets/scout-ship.png" id="8_sgixy"]
+[ext_resource type="AudioStream" uid="uid://dxxs0p2bmjw1f" path="res://sfx/thrust/thrust1.mp3" id="9_1ro0w"]
 [ext_resource type="Script" uid="uid://xl6nbptnseq1" path="res://debug_visuals.gd" id="9_3ouot"]
 [ext_resource type="Script" uid="uid://byjho4m6l2ik5" path="res://simple_draggable_camera.gd" id="10_616xp"]
 [ext_resource type="Script" uid="uid://bswjsmnxw5i3o" path="res://selected_data_label.gd" id="11_0gmoi"]
+[ext_resource type="Texture2D" uid="uid://cwyyr0maarepx" path="res://pre-assets/13 Border 03.png" id="13_omcy0"]
+[ext_resource type="Script" uid="uid://d4h4kkis0yygx" path="res://manual_control.gd" id="14_ugoup"]
+[ext_resource type="Shader" uid="uid://b8a34uovnqmyy" path="res://glow_all.gdshader" id="15_4mqhy"]
+[ext_resource type="Texture2D" uid="uid://blbo6nlfs2o0o" path="res://pre-assets/select.png" id="15_rgdj5"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_4qb3o"]
 radius = 80.0
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_omcy0"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1ro0w"]
+shader = ExtResource("4_vj3ng")
+shader_parameter/glow_color = Vector4(0, 0.7, 0.9, 1)
+shader_parameter/glow_intensity = 0.5
+shader_parameter/dropoff_factor = 2.5
+shader_parameter/overflow_percentage = 1.0
+shader_parameter/use_wibbles = false
+shader_parameter/wibbliness = 1.5
+shader_parameter/wibble_subdivision = 20.0
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_1ro0w"]
 radius = 40.0
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_vj3ng"]
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_ugoup"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_sgixy"]
 
 [sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_ho7wi"]
 particle_flag_disable_z = true
@@ -31,30 +47,35 @@ scale_min = 2.0
 scale_max = 4.0
 color = Color(1, 0.12941177, 1, 1)
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_4mqhy"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_3ouot"]
 
-[sub_resource type="LabelSettings" id="LabelSettings_pc61c"]
-font_color = Color(0.86898494, 0.8689849, 0.8689849, 1)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rgdj5"]
+shader = ExtResource("15_4mqhy")
+shader_parameter/hpass = 1.0
+shader_parameter/vpass = 1.0
+shader_parameter/radius = 65
+shader_parameter/unit = Vector2(1, 1)
 
-[node name="Physics" type="Node2D"]
-script = ExtResource("1_4qb3o")
-gravitational_constant = 100.0
-playable_area = Vector2(2000, 2000)
+[node name="System" type="Node"]
+script = ExtResource("1_omcy0")
 
 [node name="starfield" type="Node2D" parent="."]
 position = Vector2(0, -1)
 script = ExtResource("2_1ro0w")
 background = Color(0.043039158, 0.04303915, 0.04303915, 1)
+metadata/_edit_lock_ = true
 
 [node name="Polygon2D" type="Polygon2D" parent="."]
+position = Vector2(-16, 8)
 color = Color(0, 0.59607846, 0.6039216, 0.59607846)
 invert_enabled = true
 invert_border = 20.0
 polygon = PackedVector2Array(0, 0, 2000, 0, 2000, 2000, 0, 2000)
+metadata/_edit_lock_ = true
 
 [node name="TestPlanet" type="Node2D" parent="."]
 z_index = 1
-position = Vector2(896, 536)
+position = Vector2(899, 536)
 script = ExtResource("3_vj3ng")
 radius = 80.0
 label = "TestPlanet"
@@ -64,15 +85,32 @@ massTier = 3
 mass = 25.0
 velocity = Vector3(5, 0, 1)
 collision = SubResource("CircleShape2D_4qb3o")
+metadata/_edit_group_ = true
+
+[node name="NonplayerShip2" type="Node2D" parent="TestPlanet"]
+modulate = Color(3, 3, 3, 1)
+position = Vector2(-67, -60)
+rotation = -2.2282138
+script = ExtResource("6_rgdj5")
+MAX_THRUST = 2.0
+label = "NonplayerShip2"
+collision = SubResource("CircleShape2D_omcy0")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="TestPlanet/NonplayerShip2"]
+rotation = 1.5707964
+scale = Vector2(0.078125, 0.078125)
+texture = ExtResource("8_sgixy")
 
 [node name="Sprite2D" type="Sprite2D" parent="TestPlanet"]
 z_as_relative = false
+material = SubResource("ShaderMaterial_1ro0w")
 scale = Vector2(1.6, 1.6)
 texture = ExtResource("4_ugoup")
 
 [node name="TestMoon" type="Node2D" parent="."]
 z_index = 1
-position = Vector2(640, 536)
+position = Vector2(592, 521)
 script = ExtResource("3_vj3ng")
 radius = 40.0
 label = "TestMoon"
@@ -80,26 +118,7 @@ massTier = 3
 mass = 10.0
 velocity = Vector3(0, -22, 3)
 collision = SubResource("CircleShape2D_1ro0w")
-
-[node name="NonplayerShip2" type="Node2D" parent="TestMoon" node_paths=PackedStringArray("parent_body")]
-position = Vector2(0, -50)
-rotation = -1.5707964
-script = ExtResource("6_rgdj5")
-selected = false
-label = "NonplayerShip"
-p_state = 1
-massTier = 1
-mass = 2.0
-velocity = Vector3(0, 30, 1)
-collision = SubResource("CircleShape2D_vj3ng")
-parent_body = NodePath("..")
-stable_orbit_number = 0
-stable_orbit_phase = Vector3(0, 0, 0)
-
-[node name="Sprite2D" type="Sprite2D" parent="TestMoon/NonplayerShip2"]
-rotation = 1.5707964
-scale = Vector2(0.078125, 0.078125)
-texture = ExtResource("8_sgixy")
+metadata/_edit_group_ = true
 
 [node name="Sprite2D" type="Sprite2D" parent="TestMoon"]
 z_as_relative = false
@@ -107,24 +126,29 @@ scale = Vector2(0.8, 0.8)
 texture = ExtResource("5_4mqhy")
 
 [node name="PlayerShip" type="Node2D" parent="."]
-position = Vector2(896, 328)
+modulate = Color(3, 3, 3, 1)
+position = Vector2(709, 521)
 script = ExtResource("6_rgdj5")
 max_fuel = 50.0
+fuel_spend_rate = 1.0
 label = "PlayerShip"
-massTier = 1
-mass = 2.0
-velocity = Vector3(0, 1.28, 0)
-collision = SubResource("CircleShape2D_ugoup")
-stable_orbit_number = 0
-stable_orbit_phase = Vector3(0, 0, 0)
+collision = SubResource("CircleShape2D_sgixy")
+metadata/_edit_group_ = true
 
 [node name="Thrusters" type="GPUParticles2D" parent="PlayerShip"]
+modulate = Color(5, 3.5, 1.7, 1)
 scale = Vector2(0.99999994, 0.99999994)
 explosiveness = 0.24
 randomness = 0.25
 process_material = SubResource("ParticleProcessMaterial_ho7wi")
 script = ExtResource("7_omcy0")
 thrust_animation_scale = 20.0
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="PlayerShip/Thrusters"]
+position = Vector2(-895.99994, -327.99997)
+scale = Vector2(0.99999994, 0.99999994)
+stream = ExtResource("9_1ro0w")
+bus = &"Ships"
 
 [node name="Sprite2D" type="Sprite2D" parent="PlayerShip"]
 modulate = Color(1, 0.62352943, 1, 1)
@@ -133,17 +157,13 @@ scale = Vector2(0.078125, 0.078125)
 texture = ExtResource("8_sgixy")
 
 [node name="NonplayerShip" type="Node2D" parent="."]
+modulate = Color(3, 3, 3, 1)
 position = Vector2(368, 640)
 rotation = 1.5707964
 script = ExtResource("6_rgdj5")
-selected = false
 label = "NonplayerShip"
-massTier = 1
-mass = 2.0
-velocity = Vector3(0, -30, 1)
-collision = SubResource("CircleShape2D_4mqhy")
-stable_orbit_number = 0
-stable_orbit_phase = Vector3(0, 0, 0)
+collision = SubResource("CircleShape2D_3ouot")
+metadata/_edit_group_ = true
 
 [node name="Sprite2D" type="Sprite2D" parent="NonplayerShip"]
 rotation = 1.5707964
@@ -156,20 +176,79 @@ modulate = Color(1, 1, 1, 0.25882354)
 script = ExtResource("9_3ouot")
 rendering = true
 opacity = 0.1
+metadata/_edit_lock_ = true
 
-[node name="Camera2D" type="Camera2D" parent="." node_paths=PackedStringArray("follow_target")]
-position = Vector2(800, 448)
+[node name="Camera" type="Camera2D" parent="." node_paths=PackedStringArray("follow_target")]
+unique_name_in_owner = true
+position = Vector2(800, 456)
 script = ExtResource("10_616xp")
 follow_mode = true
 follow_target = NodePath("../TestPlanet")
+metadata/_edit_group_ = true
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="AudioListener2D" type="AudioListener2D" parent="Camera"]
 
-[node name="SelectionData" type="Label" parent="UI"]
-offset_left = 8.0
-offset_top = 864.0
-offset_right = 48.0
-offset_bottom = 887.0
-text = "Ship"
-label_settings = SubResource("LabelSettings_pc61c")
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="NinePatchRect" type="NinePatchRect" parent="HUD"]
+offset_left = 1388.0
+offset_top = 8.0
+offset_right = 1600.0
+offset_bottom = 404.0
+texture = ExtResource("13_omcy0")
+region_rect = Rect2(0, 128, 64, 64)
+patch_margin_left = 16
+patch_margin_top = 16
+patch_margin_right = 16
+patch_margin_bottom = 16
+
+[node name="RichTextLabel" type="RichTextLabel" parent="HUD/NinePatchRect"]
+clip_contents = false
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 16.0
+offset_bottom = 16.0
+grow_horizontal = 2
+grow_vertical = 2
+bbcode_enabled = true
+text = "INSPECTOR BAR"
 script = ExtResource("11_0gmoi")
+metadata/_edit_use_anchors_ = true
+
+[node name="ManualControl" type="Node" parent="." node_paths=PackedStringArray("selected")]
+unique_name_in_owner = true
+script = ExtResource("14_ugoup")
+selected = NodePath("../PlayerShip")
+
+[node name="Tracker" type="Sprite2D" parent="ManualControl"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.38039216)
+position = Vector2(709, 521)
+rotation = 2.8603947
+scale = Vector2(1e-05, 1e-05)
+texture = ExtResource("15_rgdj5")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Control" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_lock_ = true
+
+[node name="ColorRect" type="ColorRect" parent="CanvasLayer/Control"]
+material = SubResource("ShaderMaterial_rgdj5")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_edit_lock_ = true

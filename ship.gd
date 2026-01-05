@@ -4,15 +4,10 @@
 class_name Ship
 extends Body
 
-# whether this ship accepts user input; this is very very temporary handling!
-@export var selected: bool = true
-# we store initial position so we can reset it with special debug functions
-var initial_position: Vector2 = position
-var initial_rotation: float = rotation
-
 # how much force can the ship apply to itself
 @export var MAX_THRUST: float = 1.0
-# what is the ratio between max thrust and the maximum *angular* thrust
+# what is the ratio between max thrust and the maximum *angular* thrust.
+# this is a denominator, so larger numbers reduce the turning speed.
 const ANGULAR_THRUST_SCALE: float = 15
 
 @export var max_fuel: float = 100.0
@@ -24,6 +19,8 @@ var current_health: float = 0
 @export var init_cargo_capacity: float = 100.0
 @export var cargo_type: Cargo.CargoType = Cargo.CargoType.ORE
 var cargo: Cargo
+
+const SHIP_GLOW_FACTOR = 3.0
 
 const START_WITH_MAX_FUEL_AND_HEALTH: bool = true
 
@@ -37,9 +34,28 @@ func _init() -> void:
 
 func _ready() -> void:
 	add_to_group("ships")
+	modulate = Color(SHIP_GLOW_FACTOR, SHIP_GLOW_FACTOR, SHIP_GLOW_FACTOR)
 
 var thrust_ratio: float = 0 # 0.0 to 1.0
 var angular_thrust_ratio: float = 0  # -1.0 to 1.0
+
+func is_thrustable() -> bool:
+	return true
+
+func apply_thrust(forward: float, rotational: float, delta: float) -> bool:
+	forward = clamp(forward, 0.0, 1.0)
+	rotational = clamp(rotational, -1.0, 1.0)
+	var has_enough: bool = true
+	if forward > 0.0:
+		has_enough = fuel.deduct(fuel_spend_rate * forward * delta)
+	if has_enough:
+		thrust_ratio = forward
+		angular_thrust_ratio = rotational
+		return true
+	else:
+		thrust_ratio = 0.0
+		angular_thrust_ratio = 0.0
+		return false
 
 func apply_damage(amt: float, reason: String = "") -> void:
 	print("ship %s took %.0f damage from %s" % [label, amt, reason])
@@ -50,7 +66,6 @@ func apply_damage(amt: float, reason: String = "") -> void:
 
 func explode() -> void:
 	const EXPLOSIVENESS = 1.5
-	var psn = PhysicsSimulator.find(self)
 	for i in range(randi_range(4,7)):
 		var d = Debris.new()
 		d.radius = randi_range(2,8)
@@ -58,8 +73,11 @@ func explode() -> void:
 		d.velocity = Vector3(velo.x, velo.y, randf_range(-0.1, 0.1)) * EXPLOSIVENESS
 		d.position = global_position + velo
 		# TODO okay Body spawning needs to be standardized or this will be a mess
-		psn.container.add_child(d)
-		psn.bodies.push_back(d)
+		Simulator.container.add_child(d)
+		Simulator.bodies.push_back(d)
+	var sfx = PositionalPlayOnce.new(PositionalPlayOnce.EXPLODE_PATH, global_position)
+	sfx.bus = &"Explosions"
+	Simulator.container.add_child(sfx)
 	super.explode()
 
 func get_thrust_vector () -> Vector3:
@@ -71,11 +89,37 @@ func get_thrust_vector () -> Vector3:
 		angular_thrust_ratio * (MAX_THRUST / ANGULAR_THRUST_SCALE)
 	)
 
-static func find_selected (ps: PhysicsSimulator) -> Ship:
-	var ships = ps.bodies.filter(func (b: Body): return b and (b is Ship) and (b as Ship).selected)
-	if (ships.size() > 0):
-		return ships[0] as Ship
-	return null
+func get_thrust_rotation_dir() -> String:
+	if angular_thrust_ratio < 0:
+		return "↺"
+	elif angular_thrust_ratio > 0:
+		return "↻"
+	return "◦"
+func thrust_descriptor() -> String:
+	#var angle = Vector2(f_own.x, f_own.y).angle()
+	#var is_thrusting = thrust_ratio > 0.0 or angular_thrust_ratio > 0.0
+	return "[i]thrust[/i]\n\t%03.0f↑\t%03.0f%s\n\n%.0f/%.0f fuel (-%.0f)" % [
+		thrust_ratio * 100,
+		abs(angular_thrust_ratio * 100),
+		get_thrust_rotation_dir(),
+		fuel.amount,
+		fuel.capacity,
+		fuel_spend_rate
+	]
+	
+func get_rich_description(section: Body.RichDescriptor) -> String:
+	match section:
+		Body.RichDescriptor.TITLE:
+			return "[b]Ship %s[/b]\n%.1f@%s" % [label, mass, MassTier.find_key(massTier)]
+		Body.RichDescriptor.MOVEMENT:
+			return _move_state(self)
+		Body.RichDescriptor.CONTROL:
+			return thrust_descriptor()
+		Body.RichDescriptor.CARGO:
+			return "%.0f/%.0f %s" % [cargo.amount, cargo.capacity, cargo.cTypeLabel.to_lower()]
+		Body.RichDescriptor.PROGRESS:
+			return "%.0f/%.0f HP" % [current_health, max_health]
+	return "<unknown descriptor %d>" % section
 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
@@ -85,36 +129,10 @@ func _physics_process(delta: float) -> void:
 	if p_state == PhysicsState.ATTACHED:
 		#breakpoint
 		pass
-	
-	if selected:
-		if Input.is_action_pressed("haltMovement"):
-			f_own = Vector3(0, 0, 0)
-			velocity = Vector3(0, 0, 0)
-			if Input.is_key_pressed(KEY_SHIFT):
-				position = initial_position
-				rotation = initial_rotation
-				p_state = Body.PhysicsState.FREE
-			return
-		
-		if Input.is_action_pressed("thrustForward"):
-			var intended_thrust = 1.0
-			var has_enough = fuel.deduct(fuel_spend_rate * intended_thrust * delta)
-			if has_enough:
-				thrust_ratio = intended_thrust
-			else:
-				thrust_ratio = 0.0
-		else:
-			thrust_ratio = 0.0
-		
-		# NOTE for now rotating doesn't require fuel
-		if Input.is_action_pressed("thrustRotateCW"):
-			angular_thrust_ratio = 1.0
-		elif Input.is_action_pressed("thrustRotateCCW"):
-			angular_thrust_ratio = -1.0
-		else:
-			angular_thrust_ratio = 0.0
-
-		f_own = get_thrust_vector()
-	
+	f_own = get_thrust_vector()
 	# the _physics_process on Body handles turning force into accel & veloc
 	super(delta)
+	
+func _draw() -> void:
+	pass
+	#draw_arc(position, radius, 0.0, PI/2.0, 12, Color.WEB_GREEN, -2.0)
